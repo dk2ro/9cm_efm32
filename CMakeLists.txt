@@ -66,7 +66,7 @@ add_subdirectory(${BASE_LOCATION}/hardware)
 # This is normally set in efm32-base.cmake, but libraries may modify it so set
 # it after libraries/subdirectories have been added
 set(CMAKE_EXE_LINKER_FLAGS "${COMMON_DEFINITIONS} -Xlinker -T${LINKER_SCRIPT} -Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.map -Wl,--gc-sections -Wl,-v")
-
+# -u _printf_float
 ##### Files #####
 
 # Add project headers
@@ -75,7 +75,10 @@ include_directories(${BASE_LOCATION}/include)
 # Generate executable and link
 add_executable(${PROJECT_NAME}
         main.c
-        uart.c)
+        uart.c
+        i2c.c
+        i2c.h
+        tmp432.c)
 
 efm32_configure_linker_addresses(${PROJECT_NAME})
 

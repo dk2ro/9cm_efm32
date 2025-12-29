@@ -1,5 +1,3 @@
-//EFM32 blink test
-
 #ifndef LED_PIN
 #define LED_PIN     8
 #endif
@@ -17,11 +15,10 @@
 #include "em_device.h"
 #include "em_chip.h"
 #include "em_cmu.h"
-#include "em_emu.h"
 #include "em_gpio.h"
-#include "em_usart.h"
 #include "em_vdac.h"
 
+#include "tmp432.h"
 #include "uart.h"
 
 volatile uint32_t msTicks; /* counts 1ms timeTicks */
@@ -58,6 +55,7 @@ int main(void) {
     CMU_ClockEnable(cmuClock_VDAC0, true);
     CMU_ClockEnable(cmuClock_HFPER, true);
     CMU_ClockEnable(cmuClock_USART0, true);
+    CMU_ClockEnable(cmuClock_I2C0, true);
 
     /* Setup SysTick Timer for 1 msec interrupts  */
     if (SysTick_Config(CMU_ClockFreqGet(cmuClock_CORE) / 1000)) while (1);
@@ -83,18 +81,21 @@ int main(void) {
 
 
     uart_init();
+    tmp432_init();
 
-    printf("test");
 
-    /* Infinite blink loop */
     uint16_t i = 0;
 
-    char buff[32];
+    char buff[80];
 
     while (1) {
-        sprintf(buff, "Current i = %d\r\n", i++);
+        uint32_t tmp_l = tmp432_get_temperature(TMP432_LOCAL);
+        uint32_t tmp_r = tmp432_get_temperature(TMP432_REMOTE2);
+
+        sprintf(buff, "Current i = %d, temp_r = %lu.%04lu, temp_l = %lu.%04lu\r\n",
+            i++, tmp_r / 10000, tmp_r % 10000, tmp_l / 10000, tmp_l % 10000);
         uart_tx(buff);
-        Delay(100);
-        GPIO_PortOutSetVal(LED_PORT, GPIO_PinInGet(PTT_PORT,PTT_PIN)<< LED_PIN, 1 << LED_PIN);
+        Delay(1000);
+        GPIO_PortOutSetVal(LED_PORT, GPIO_PinInGet(PTT_PORT,PTT_PIN) << LED_PIN, 1 << LED_PIN);
     }
 }
