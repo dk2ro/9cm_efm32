@@ -1,15 +1,14 @@
-//
-// Created by robert on 22.12.25.
-//
-
 #include "uart.h"
 
+#include "em_cmu.h"
 #include "em_gpio.h"
 #include "em_usart.h"
 
 
 
 void uart_init(void) {
+    CMU_ClockEnable(cmuClock_USART0, true);
+
     USART_InitAsync_TypeDef initAsync = USART_INITASYNC_DEFAULT;
     initAsync.baudrate = 115200;
     USART_InitAsync(USART0, &initAsync);
@@ -26,7 +25,7 @@ void uart_init(void) {
     GPIO_PinModeSet((GPIO_Port_TypeDef)AF_USART0_RX_PORT(USER_RX_LOCATION), AF_USART0_RX_PIN(USER_RX_LOCATION), gpioModeInput, 0);
 }
 
-void uart_tx(uint8_t *data) {
+void uart_tx(char *data) {
     do{
         USART_Tx(USART0, *data);
     }while (*++data);

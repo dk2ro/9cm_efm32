@@ -1,7 +1,3 @@
-//
-// Created by robert on 22.12.25.
-//
-
 #ifndef EFM32_TEST_UART_H
 #define EFM32_TEST_UART_H
 
@@ -11,6 +7,6 @@
 
 
 void uart_init(void);
-void uart_tx(uint8_t *data);
+void uart_tx(char *data);
 
 #endif //EFM32_TEST_UART_H

@@ -77,8 +77,8 @@ add_executable(${PROJECT_NAME}
         main.c
         uart.c
         i2c.c
-        i2c.h
-        tmp432.c)
+        tmp432.c
+        adc.c)
 
 efm32_configure_linker_addresses(${PROJECT_NAME})
 

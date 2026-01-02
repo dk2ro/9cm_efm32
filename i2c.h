@@ -1,6 +1,3 @@
-//
-// Created by robert on 25.12.25.
-//
 #ifndef INC_9CM_EFM32_I2C_H
 #define INC_9CM_EFM32_I2C_H
 

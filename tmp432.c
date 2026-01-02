@@ -1,7 +1,3 @@
-//
-// Created by robert on 28.12.25.
-//
-
 #include "i2c.h"
 #include "tmp432.h"
 
@@ -121,7 +117,7 @@ void tmp432_init() {
     i2c_write(TMP432_I2C_ADDR, req, 2);
 }
 
-uint32_t tmp432_get_temperature(enum tmp432_temp temp) {
+void tmp432_get_temperature(enum tmp432_temp temp, uint32_t *tmp_int, uint32_t *tmp_decimal) {
     uint8_t temp_val[2];
 
     uint8_t req;
@@ -137,5 +133,9 @@ uint32_t tmp432_get_temperature(enum tmp432_temp temp) {
     // reading two bytes should automatically get high and low byte
     i2c_write_read(TMP432_I2C_ADDR, &req, 1, temp_val, 2);
 
-    return tmp_to_degree(temp_val[0], temp_val[1]);
+    uint32_t ltemp =  tmp_to_degree(temp_val[0], temp_val[1]);
+
+    *tmp_int = ltemp  / 10000;
+    *tmp_decimal= ltemp  % 10000;
+
 }

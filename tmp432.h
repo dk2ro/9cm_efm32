@@ -1,7 +1,3 @@
-//
-// Created by robert on 28.12.25.
-//
-
 #ifndef INC_9CM_EFM32_TMP432_H
 #define INC_9CM_EFM32_TMP432_H
 
@@ -15,6 +11,6 @@ void tmp432_init(void);
 
 uint32_t tmp432_get_remote_temp2(void);
 
-uint32_t tmp432_get_temperature(enum tmp432_temp);
+void tmp432_get_temperature(enum tmp432_temp, uint32_t *tmp_int, uint32_t *tmp_decimal);
 
 #endif //INC_9CM_EFM32_TMP432_H

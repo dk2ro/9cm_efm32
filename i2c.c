@@ -1,17 +1,16 @@
-//
-// Created by robert on 25.12.25.
-//
-
 #include "i2c.h"
 
 #include <stddef.h>
 
+#include "em_cmu.h"
 #include "em_gpio.h"
 #include "em_i2c.h"
 
 
 
 void i2c_init() {
+    CMU_ClockEnable(cmuClock_I2C0, true);
+
     I2C_Init_TypeDef i2cInit = I2C_INIT_DEFAULT;
     // Use ~400khz SCK
     i2cInit.freq = I2C_FREQ_STANDARD_MAX;
