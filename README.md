@@ -11,6 +11,20 @@
 * Temperature warning / over temp shutdown
 * Current warning
 
+## Hardware
+Reverse engineering of the hardware was done by [eevblog.com forum members](https://www.eevblog.com/forum/rf-microwave/10w-rf-amplifier-3400-3800-mhz-from-aliexpress-reverse-engineering/)
+
+This firmware uses the following pinout for 10 pin connector:
+
+| Description |  Pin  | Pin | Description |
+|------------:|:-----:|:---:|:------------|
+|         5 V | **1** |  2  | 28 V        |
+|         GND |   3   |  4  | UART TX     | 
+|   TX Enable |   5   |  6  | UART RX     | 
+|       SWDIO |   7   |  8  | SWDCLK      | 
+|         GND |   9   | 10  | !RESET      | 
+
+
 ## Building / Flashing
 For building the firmware arm-none-eabi-gcc is required. 
 ```shell
