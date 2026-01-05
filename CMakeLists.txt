@@ -80,7 +80,9 @@ add_executable(${PROJECT_NAME}
         tmp432.c
         adc.c
         ud.c
-        ud.h)
+        ud.h
+        vdac.c
+        vdac.h)
 
 efm32_configure_linker_addresses(${PROJECT_NAME})
 

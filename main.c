@@ -24,6 +24,7 @@
 #include "uart.h"
 #include "adc.h"
 #include "ud.h"
+#include "vdac.h"
 
 
 volatile uint8_t e_stop = 0;
@@ -97,21 +98,10 @@ int main(void) {
     NVIC_SetPriority(GPIO_EVEN_IRQn, 0); // 0 is highest priority (default is 0, so this call is just for documentation)
     GPIO_ExtIntConfig(INA302_PORT, INA302_ALERT1_PIN,INA302_ALERT1_PIN, 0, 1, true);
 
-    VDAC_Init_TypeDef vdacInit = VDAC_INIT_DEFAULT;
-    VDAC_InitChannel_TypeDef vdacChInit = VDAC_INITCHANNEL_DEFAULT;
-    // Set prescaler to get 1 MHz VDAC clock frequency.
-    vdacInit.prescaler = VDAC_PrescaleCalc(1000000, true, 0);
-    vdacInit.reference = vdacRefAvdd;
-    VDAC_Init(VDAC0, &vdacInit);
-    vdacChInit.enable = true;
-    VDAC_InitChannel(VDAC0, &vdacChInit, 0);
-
-    VDAC_ChannelOutputSet(VDAC0, 0, 0);
-
     adc_init();
     uart_init();
     tmp432_init();
-
+    vdac_init();
     ud_check_version();
 
     while (1) {
