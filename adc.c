@@ -170,9 +170,6 @@ uint32_t* adc_get_data(uint32_t* len) {
     return adc_buff ? pongBuffer : pingBuffer;
 }
 
-#define LED_PIN     8
-#define LED_PORT    gpioPortC
-
 /* Template for an LDMA IRQ handler. */
 void LDMA_IRQHandler(void) {
     LDMA_IntClear((1 << LDMA_CHANNEL) << _LDMA_IFC_DONE_SHIFT);

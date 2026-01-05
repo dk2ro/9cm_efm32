@@ -23,6 +23,7 @@
 #include "tmp432.h"
 #include "uart.h"
 #include "adc.h"
+#include "ud.h"
 
 
 volatile uint8_t e_stop = 0;
@@ -111,6 +112,8 @@ int main(void) {
     uart_init();
     tmp432_init();
 
+    ud_check_version();
+
     while (1) {
         if (e_stop) goto E_STOP;
 
@@ -118,7 +121,7 @@ int main(void) {
         uint8_t ptt = GPIO_PinInGet(PTT_PORT,PTT_PIN);
         GPIO_PortOutSetVal(LED_PORT, ptt << LED_PIN, 1 << LED_PIN);
         if (ptt) {
-            VDAC_ChannelOutputSet(VDAC0, 0, 2810);
+            VDAC_ChannelOutputSet(VDAC0, 0, ud_get_cal_value());
         } else {
             VDAC_ChannelOutputSet(VDAC0, 0, 0);
         }
