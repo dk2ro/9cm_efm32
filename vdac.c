@@ -18,3 +18,7 @@ void vdac_init() {
 
     VDAC_ChannelOutputSet(VDAC0, 0, 0);
 }
+
+void vdac_set_gate_bias(uint32_t gate_bias) {
+    VDAC_ChannelOutputSet(VDAC0, 0, gate_bias);
+}

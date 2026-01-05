@@ -8,5 +8,6 @@
 
 void uart_init(void);
 void uart_tx(char *data);
+char uart_rx(void);
 
 #endif //EFM32_TEST_UART_H

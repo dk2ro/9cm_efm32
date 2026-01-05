@@ -30,3 +30,11 @@ void uart_tx(char *data) {
         USART_Tx(USART0, *data);
     }while (*++data);
 }
+
+char uart_rx() {
+    if (USART_StatusGet(USART0) & USART_STATUS_RXDATAV) {
+        return USART_RxDataGet(USART0);
+    }
+    return 0;
+
+}

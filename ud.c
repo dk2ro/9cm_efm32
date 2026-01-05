@@ -79,7 +79,7 @@ void ud_update_cal_value(uint32_t new_cal_value) {
     for (i = 0; i < USER_PAGE_WORDS; i++)
         user_page_copy.WORDS[i] = USERDATA->WORDS[i];
 
-    *(uint8_t *) &user_page_copy.CAL1 = new_cal_value;
+    *(uint32_t *) &(user_page_copy.CAL1) = new_cal_value;
 
     write_user_data(&user_page_copy);
 }
