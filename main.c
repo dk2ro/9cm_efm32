@@ -32,8 +32,21 @@
 volatile uint8_t e_stop = 0;
 volatile uint32_t msTicks; /* counts 1ms timeTicks */
 
+struct {
+    volatile uint8_t enabled;
+    volatile uint32_t interval;
+    volatile uint32_t val;
+} blink = {
+    .enabled = false,
+};
+
 void SysTick_Handler(void) {
     msTicks++; /* increment counter necessary in Delay()*/
+
+    if (blink.enabled && blink.val == msTicks) {
+        GPIO_PinOutToggle(LED_PORT, LED_PIN);
+        blink.val += blink.interval;
+    }
 }
 
 
@@ -44,6 +57,35 @@ void Delay(uint32_t dlyTicks) {
     while ((msTicks - curTicks) < dlyTicks);
 }
 
+void blink_start(uint8_t freq) {
+    blink.interval = 1000 / (freq * 2);
+    blink.enabled = true;
+    blink.val = msTicks + blink.interval;
+}
+
+void blink_stop(void) {
+    blink.enabled = false;
+    GPIO_PinOutClear(LED_PORT, LED_PIN);
+}
+
+void m(char c) {
+    uint8_t a[] = {
+        0xa0, 0xa1, 0xa3, 0xa7, 0xaf, 0xbf, 0xbe, 0xbc, 0xb8, 0xb0,
+        0x41, 0x8e, 0x8a, 0x66, 0x21, 0x8b, 0x64, 0x8f, 0x43, 0x81, 0x62, 0x8d, 0x40, 0x42, 0x60, 0x89, 0x84, 0x65,
+        0x67, 0x20, 0x63, 0x87, 0x61, 0x86, 0x82, 0x8c
+    };
+    uint8_t ch = c >= 'a' ? a[c - 'a' + 10] : a[(uint8_t) c];
+
+    uint8_t len = (ch & 0xe0u) >> 5u;
+    while (len--) {
+        GPIO_PinOutSet(LED_PORT, LED_PIN);
+        Delay((3 - (ch & 1u) * 2) * 200);
+        GPIO_PinOutClear(LED_PORT, LED_PIN);
+        Delay(200);
+        ch >>= 1u;
+    }
+    Delay(4<00);
+}
 
 void GPIO_EVEN_IRQHandler(void) {
     // Clear all even pin interrupt flags
@@ -52,27 +94,18 @@ void GPIO_EVEN_IRQHandler(void) {
     GPIO_PinOutSet(PA_EMERGENCY_OFF_PORT, PA_EMERGENCY_OFF_PIN);
     VDAC_ChannelOutputSet(VDAC0, 0, 0);
 
-    // Toggle LED0
     e_stop = 1;
 }
 
-void calibration(void) {
+uint8_t calibration(void) {
     uart_tx("###########################################\r\n");
     uart_tx("#         Calibration Routine             #\r\n");
     uart_tx("###########################################\r\n");
-    uart_tx("Ready to start calibration? (y)\r\n");
-    char c;
-
-
-    // check for user input (y or enter key)
-    do {
-        c = uart_rx();
-        if (c && c != 'y' && c != '\r' && c != '\n') {
-            return; // user quit
-        }
-    } while (c == 0);
 
     uart_tx("Starting calibration\r\n");
+    m('c');
+    Delay(1000);
+    blink_start(1);
 
     uint8_t ptt = GPIO_PinInGet(PTT_PORT,PTT_PIN);
     if (!ptt) {
@@ -81,6 +114,8 @@ void calibration(void) {
             ptt = GPIO_PinInGet(PTT_PORT,PTT_PIN);
         }
     }
+
+    blink_start(2);
 
     uint32_t offset = 1000;
     uint32_t cur_val = offset;
@@ -92,12 +127,12 @@ void calibration(void) {
         if (!ptt) {
             vdac_set_gate_bias(0);
             uart_tx("Calibration aborted, TX Pin low\r\n");
-            return;
+            return 1;
         }
         if (e_stop) {
             vdac_set_gate_bias(0);
             uart_tx("Calibration aborted, overcurrent\r\n");
-            return;
+            return 2;
         }
 
         vdac_set_gate_bias(cur_val);
@@ -115,15 +150,18 @@ void calibration(void) {
             sum += adc_buff[i];
         }
 
-        uint32_t target = 80 * 4096 * 2 * data_len / 1250;
+        uint32_t target = 80 * 4096 * 2 * data_len / 2500;
         error = (int32_t) target - (int32_t) sum;
 
+        uint32_t mv = sum * 3125 / (1024 * data_len); // this might overflow (value is only for display)
+
         char buff[80];
-        sprintf(buff, "Iteration %d , val = %lu:, target = %lu, sum = %lu, error = %ld \r\n", k + 1, cur_val, target,
-                sum, error);
+        sprintf(buff, "Iteration %d, DAC val = %lu, target = %lu, measured = %lu (%lu.%lu mA), error = %ld \r\n", k + 1,
+                cur_val, target,
+                sum, mv / 10, mv % 10, error);
         uart_tx(buff);
 
-        int32_t p_fact = 1;
+        int32_t p_fact = 2;
         int32_t i_fact = 10;
 
         int32_t p_term = p_fact * error;
@@ -136,7 +174,7 @@ void calibration(void) {
         if (cur_val > 4000 || cur_val < 1000) {
             vdac_set_gate_bias(0);
             uart_tx("Calibration aborted, set value out of range\r\n");
-            return;
+            return 3;
         }
     }
 
@@ -144,11 +182,20 @@ void calibration(void) {
 
     if (error < -1000 || error > 1000) {
         uart_tx("Calibration failed, error still too high\r\n");
-        return;
+        return 4;
     }
 
     uart_tx("Calibration successful. Writing new value to flash.\r\n");
     ud_update_cal_value(cur_val);
+
+    m('r');
+    m(cur_val / 1000);
+    m(cur_val / 100 % 10);
+    m(cur_val / 10 % 10);
+    m(cur_val % 10);
+
+
+    return 0;
 }
 
 void get_min_max_avg(uint32_t *buff, uint32_t len, uint32_t *min, uint32_t *max, uint32_t *avg) {
@@ -162,11 +209,12 @@ void get_min_max_avg(uint32_t *buff, uint32_t len, uint32_t *min, uint32_t *max,
         avg_sum += buff[i];
     }
 
-    *min = lmin * 1250 / 8192;
-    *max = lmax * 1250 / 8192;
-    *avg = avg_sum * 1250 / 8192 / len;
-}
+    // Current Measurement 2 V/A, ADC Ref 2,5V, 12 bit
 
+    *min = lmin * 2500 / 8192;
+    *max = lmax * 2500 / 8192;
+    *avg = avg_sum * 625 / 2048 / len;
+}
 
 int main(void) {
     CHIP_Init();
@@ -183,8 +231,6 @@ int main(void) {
     /* Initialize LED driver */
     GPIO_PinModeSet(LED_PORT, LED_PIN, gpioModePushPull, 0);
 
-    GPIO_PinOutSet(LED_PORT, LED_PIN);
-
     GPIO_PinModeSet(PTT_PORT, PTT_PIN, gpioModeInput, 0);
 
     GPIO_PinModeSet(INA302_PORT, INA302_ALERT1_PIN, gpioModeInputPull, 1);
@@ -199,7 +245,26 @@ int main(void) {
     uart_init();
     tmp432_init();
     vdac_init();
-    ud_check_version();
+
+    Delay(3000);
+
+    ud_check_version_and_update();
+
+    while (!ud_get_cal_value()) {
+        // no cal data, run calibration
+        uint8_t err = calibration();
+        if (err) {
+            // cal failed
+            blink_start(5);
+            Delay(3000);
+            blink_stop();
+            Delay(1000);
+            m('f');
+            m(err);
+            Delay(2000);
+        }
+    }
+
 
     while (1) {
         if (e_stop) goto E_STOP;
@@ -229,17 +294,10 @@ int main(void) {
                     i_avg, i_min, i_max, tmp_r_int, tmp_r_decimal, tmp_l_int, tmp_l_decimal);
             uart_tx(buff);
         }
-
-        char c = uart_rx();
-        if (c == 'c') {
-            calibration();
-        }
     }
 
 E_STOP:
     uart_tx("EMERGENCY STOP! Overcurrent\r\n");
-    while (1) {
-        GPIO_PinOutToggle(LED_PORT, LED_PIN);
-        Delay(100);
-    }
+    blink_start(5);
+    while (1);
 }

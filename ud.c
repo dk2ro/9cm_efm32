@@ -8,9 +8,6 @@
 #include "uart.h"
 
 
-#define UD_FW_MAJ 0
-#define UD_FW_MIN 1
-
 #define USER_PAGE_WORDS 16
 
 typedef union {
@@ -24,9 +21,9 @@ typedef union {
 } USERDATA_Union;
 
 const USERDATA_Union ud_default_values = {
-    .FW_MAJ = 0,
-    .FW_MIN = 1,
-    .CAL1 = 2810
+    .FW_MAJ = UD_FW_MAJ,
+    .FW_MIN = UD_FW_MIN,
+    .CAL1 = 0
 };
 
 #define USERDATA  ((USERDATA_Union *) USERDATA_BASE)
@@ -44,10 +41,12 @@ static void write_user_data(const USERDATA_Union *new_data) {
     }
 }
 
-void ud_check_version() {
+uint8_t ud_check_version_and_update() {
     char buff[80];
+    uint8_t ret = 0;
     if (USERDATA->FW_MAJ != ud_default_values.FW_MAJ) {
-        sprintf(buff, "User data version mismatch (%d != %d)\r\n", USERDATA->FW_MAJ, ud_default_values.FW_MAJ);
+        ret = 1;
+        //sprintf(buff, "User data version mismatch (%d != %d)\r\n", USERDATA->FW_MAJ, ud_default_values.FW_MAJ);
         uart_tx(buff);
         if (USERDATA->FW_MAJ == 0xff) {
             uart_tx("New device, ");
@@ -64,6 +63,8 @@ void ud_check_version() {
         USERDATA->FW_MAJ, USERDATA->FW_MIN, USERDATA->CAL1);
 
     uart_tx(buff);
+
+    return ret;
 }
 
 

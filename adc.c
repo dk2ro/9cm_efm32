@@ -137,7 +137,7 @@ void adc_init() {
 
     // Basic ADC single configuration
     initSingle.diff = false; // single-ended
-    initSingle.reference = adcRef1V25; // 2.5V reference
+    initSingle.reference = adcRef2V5; // 2.5V reference
     initSingle.resolution = adcRes12Bit; // 12-bit resolution
     initSingle.acqTime = adcAcqTime4; // set acquisition time to meet minimum requirements
 

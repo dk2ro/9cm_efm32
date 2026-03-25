@@ -21,7 +21,7 @@ This firmware uses the following pinout for 10 pin connector:
 |------------:|:-----:|:---:|:------------|
 |         5 V | **1** |  2  | 28 V        |
 |         GND |   3   |  4  | UART TX     | 
-|   TX Enable |   5   |  6  | UART RX     | 
+|   TX Enable |   5   |  6  | TX out      | 
 |       SWDIO |   7   |  8  | SWDCLK      | 
 |         GND |   9   | 10  | !RESET      | 
 
@@ -45,13 +45,21 @@ openocd -f interface/cmsis-dap.cfg -f target/efm32.cfg -c "reset_config srst_nog
 
 The ```-c "reset_config srst_nogate connect_assert_srst"``` is only necessary for flashing the first time, because otherwise the bootloader will interfere. On subsequent flashing, this option can be ommited. 
 
+
+## Startup / $I_{Dq}$ Calibration Routine
+At first start the calibration routine will be started (LED letter 'c' + 1 Hz blinking)
+
+In order to achieve around 80 mA of drain quiescent current, this routine will tune the VDAC output value which biases the gate of the RF MOSFET.
+
+To start the calibration routine, apply voltage to the TX Enable Pin. Don't apply any RF to the input!
+
+While running the LED will blink at 2 Hz and the current status can be monitored on the serial output.
+
+If the calibration was successful, the determined VDAC value will be stored in flash and the LED will indicate the letter 'r' followed by four digits stating the VDAC value.
+
+Should the calibration fail, the LED will blink at 5 Hz for a few seconds and the calibration routine will start again.
 ## Serial Output (115200 Baud)
 Currently, the firmware will output the measured drain current and the two temperatures from the TMP432 (remote and local)
 ```
 i_avg = 87 mA (min 85, max 90), temp_r = 22.6250, temp_l = 22.3125
 ```
-
-## $I_{Dq}$ Calibration Routine
-In order to achieve around 80 mA of drain quiescent current, this routine will tune the VDAC output value which biases the gate of the RF MOSFET.
-
-To start the calibration routine, send the character 'c' over the serial connection.
