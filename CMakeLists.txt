@@ -82,7 +82,8 @@ add_executable(${PROJECT_NAME}
         ud.c
         ud.h
         vdac.c
-        vdac.h)
+        vdac.h
+        state_machine.c)
 
 efm32_configure_linker_addresses(${PROJECT_NAME})
 

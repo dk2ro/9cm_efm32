@@ -4,6 +4,13 @@
 #define PTT_PIN 5
 #define PTT_PORT gpioPortA
 
+#define TX_CONSENT_PIN 15
+#define TX_CONSENT_PORT gpioPortB
+
+#define PTT_OUT_PIN 11
+#define PTT_OUT_PORT gpioPortC
+
+
 #define PA_EMERGENCY_OFF_PORT gpioPortA
 #define PA_EMERGENCY_OFF_PIN 4
 
@@ -25,6 +32,7 @@
 #include "tmp432.h"
 #include "uart.h"
 #include "adc.h"
+#include "state_machine.h"
 #include "ud.h"
 #include "vdac.h"
 
@@ -84,15 +92,16 @@ void m(char c) {
         Delay(200);
         ch >>= 1u;
     }
-    Delay(4<00);
+    Delay(400);
 }
 
 void GPIO_EVEN_IRQHandler(void) {
     // Clear all even pin interrupt flags
     GPIO_IntClear(0x5555);
 
-    GPIO_PinOutSet(PA_EMERGENCY_OFF_PORT, PA_EMERGENCY_OFF_PIN);
     VDAC_ChannelOutputSet(VDAC0, 0, 0);
+    GPIO_PinOutSet(PA_EMERGENCY_OFF_PORT, PA_EMERGENCY_OFF_PIN);
+    GPIO_PinOutClear(PTT_OUT_PORT, PTT_OUT_PIN);
 
     e_stop = 1;
 }
@@ -216,6 +225,123 @@ void get_min_max_avg(uint32_t *buff, uint32_t len, uint32_t *min, uint32_t *max,
     *avg = avg_sum * 625 / 2048 / len;
 }
 
+void tRX_init(void), tRX_task(void);
+void tRX_lnaoff_init(void), tRX_lnaoff_task(void);
+void tTX_pre_drive_init(void), tTX_pre_drive_task(void);
+void tTX_ampoff_init(void), tTX_ampoff_task(void);
+void tTX_init(void), tTX_task(void);
+
+
+state_t tRX = {
+    .init_task = &tRX_init,
+    .task = &tRX_task,
+    .interrupt_task = &state_machine_state_null
+};
+
+state_t tRX_lnaoff = {
+    .init_task = &tRX_lnaoff_init,
+    .task = &tRX_lnaoff_task,
+    .interrupt_task = &state_machine_state_null
+};
+
+state_t tTX_pre_drive = {
+    .init_task = &tTX_pre_drive_init,
+    .task = &tTX_pre_drive_task,
+    .interrupt_task = &state_machine_state_null
+};
+
+state_t tTX = {
+    .init_task = &tTX_init,
+    .task = &tTX_task,
+    .interrupt_task = &state_machine_state_null
+};
+
+
+state_t tTX_ampoff = {
+    .init_task = &tTX_ampoff_init,
+    .task = &tTX_ampoff_task,
+    .interrupt_task = &state_machine_state_null
+};
+
+
+void tRX_init() {
+    uart_tx("STATE RX\r\n");
+}
+
+void tRX_task() {
+    if (GPIO_PinInGet(PTT_PORT,PTT_PIN)) {
+        state_machine_next_state(&tRX_lnaoff);
+    }
+}
+
+
+void tRX_lnaoff_init() {
+    state_machine_start_timer(100);
+    uart_tx("STATE RX (lna off)\r\n");
+}
+
+void tRX_lnaoff_task() {
+    if (state_machine_interrupt_flag) {
+        if (GPIO_PinInGet(PTT_PORT,PTT_PIN)) {
+            state_machine_next_state(&tTX_pre_drive);
+        } else {
+            state_machine_next_state(&tRX);
+        }
+    }
+}
+
+void tTX_pre_drive_init() {
+    GPIO_PinOutSet(PTT_OUT_PORT, PTT_OUT_PIN);
+    state_machine_start_timer(100);
+    uart_tx("STATE RX (pre_drive)\r\n");
+}
+
+
+void tTX_pre_drive_task() {
+    if (state_machine_interrupt_flag) {
+        if (GPIO_PinInGet(PTT_PORT,PTT_PIN)) {
+            state_machine_next_state(&tTX);
+        } else {
+            state_machine_next_state(&tTX_ampoff);
+        }
+    }
+}
+
+
+void tTX_init() {
+    vdac_set_gate_bias(ud_get_cal_value());
+    uart_tx("STATE TX \r\n");
+    GPIO_PinOutSet(LED_PORT, LED_PIN);
+}
+
+
+void tTX_task() {
+    if (!GPIO_PinInGet(PTT_PORT,PTT_PIN)) {
+        state_machine_next_state(&tTX_ampoff);
+    }
+}
+
+void tTX_ampoff_init() {
+    GPIO_PinOutClear(LED_PORT, LED_PIN);
+    GPIO_PinOutClear(PTT_OUT_PORT, PTT_OUT_PIN);
+    vdac_set_gate_bias(0);
+
+    state_machine_start_timer(100);
+    uart_tx("STATE TX (ampoff)\r\n");
+}
+
+
+void tTX_ampoff_task() {
+    if (state_machine_interrupt_flag) {
+        if (GPIO_PinInGet(PTT_PORT,PTT_PIN)) {
+            state_machine_next_state(&tTX);
+        } else {
+            state_machine_next_state(&tRX);
+        }
+    }
+}
+
+
 int main(void) {
     CHIP_Init();
 
@@ -225,6 +351,7 @@ int main(void) {
     CMU_ClockEnable(cmuClock_USART0, true);
     CMU_ClockEnable(cmuClock_I2C0, true);
 
+
     /* Setup SysTick Timer for 1 msec interrupts  */
     if (SysTick_Config(CMU_ClockFreqGet(cmuClock_CORE) / 1000)) while (1);
 
@@ -232,6 +359,10 @@ int main(void) {
     GPIO_PinModeSet(LED_PORT, LED_PIN, gpioModePushPull, 0);
 
     GPIO_PinModeSet(PTT_PORT, PTT_PIN, gpioModeInput, 0);
+
+    GPIO_PinModeSet(TX_CONSENT_PORT, TX_CONSENT_PIN, gpioModePushPull, 1);
+
+    GPIO_PinModeSet(PTT_OUT_PORT, PTT_OUT_PIN, gpioModePushPull, 0);
 
     GPIO_PinModeSet(INA302_PORT, INA302_ALERT1_PIN, gpioModeInputPull, 1);
     GPIO_PinModeSet(INA302_PORT, INA302_ALERT2_PIN, gpioModeInputPull, 1);
@@ -245,6 +376,9 @@ int main(void) {
     uart_init();
     tmp432_init();
     vdac_init();
+
+    state_machine_init();
+    state_machine_next_state(&tTX_ampoff);
 
     Delay(3000);
 
@@ -269,13 +403,7 @@ int main(void) {
     while (1) {
         if (e_stop) goto E_STOP;
 
-        uint8_t ptt = GPIO_PinInGet(PTT_PORT,PTT_PIN);
-        GPIO_PortOutSetVal(LED_PORT, ptt << LED_PIN, 1 << LED_PIN);
-        if (ptt) {
-            vdac_set_gate_bias(ud_get_cal_value());
-        } else {
-            vdac_set_gate_bias(0);
-        }
+        state_machine_worker();
 
         uint32_t data_len;
         uint32_t *adc_buff = adc_get_data(&data_len);

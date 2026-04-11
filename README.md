@@ -4,10 +4,10 @@
 * Current monitoring
 * Temperature measurement
 * VDAC for gate bias supply
-* Calibration routine for setting Idq
+* Calibration routine for setting $I_{Dq}$
+* PTT output for driver amplifier (with basic sequencing)
 
 ## TODO
-* RX/TX sequencing
 * $I_{Dq}$ temperature compensation 
 * Temperature warning / over temp shutdown
 * Current warning
@@ -21,7 +21,7 @@ This firmware uses the following pinout for 10 pin connector:
 |------------:|:-----:|:---:|:------------|
 |         5 V | **1** |  2  | 28 V        |
 |         GND |   3   |  4  | UART TX     | 
-|   TX Enable |   5   |  6  | TX out      | 
+|      PTT in |   5   |  6  | PTT out     | 
 |       SWDIO |   7   |  8  | SWDCLK      | 
 |         GND |   9   | 10  | !RESET      | 
 
